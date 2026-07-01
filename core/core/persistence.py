@@ -28,4 +28,4 @@ class Persistence:
             with open(self.path, "r") as f:
                 return json.load(f)
         except FileNotFoundError:
-            return None
+            return None 
