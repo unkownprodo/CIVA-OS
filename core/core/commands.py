@@ -4,10 +4,18 @@ from core.shell import Event, CommandEntry
 def register_commands(shell):
 
     def help_cmd(args):
+        print("\nAvailable Commands:")
+        for name, entry in shell._registry.items():
+            print(f"  {name:<10} - {entry.description}")
         return Event("logged", {})
 
     def status_cmd(args):
-        print("System running...")
+        print("\n--- CIVA-OS STATUS ---")
+        print(f"Commands loaded: {len(shell._registry)}")
+        print(f"Running: {shell._running}")
+        print(f"Readonly mode: {shell._readonly_mode}")
+        print(f"Protected mode: {shell._protected_mode}")
+        print("----------------------\n")
         return Event("logged", {})
 
     def echo_cmd(args):
@@ -16,12 +24,12 @@ def register_commands(shell):
         return Event("echo", {"message": message})
 
     def exit_cmd(args):
-        print("Shutting down...")
+        print("Shutting down CIVA-OS...")
         return Event("shutdown", {})
 
     shell._registry = {
-        "help": CommandEntry("List commands", help_cmd),
+        "help": CommandEntry("List all commands", help_cmd),
         "status": CommandEntry("Show system status", status_cmd),
-        "echo": CommandEntry("Print message", echo_cmd),
+        "echo": CommandEntry("Print a message", echo_cmd),
         "exit": CommandEntry("Shutdown system", exit_cmd),
     }
