@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 from time import time
+from datetime import datetime
 
 
 @dataclass
@@ -15,15 +16,24 @@ class Logger:
         self._entries: List[LogEntry] = []
 
     def log(self, command: str, metadata: Optional[dict] = None):
-        entry = LogEntry(
-            timestamp=time(),
-            command=command,
-            metadata=metadata
+        self._entries.append(
+            LogEntry(
+                timestamp=time(),
+                command=command,
+                metadata=metadata
+            )
         )
-        self._entries.append(entry)
 
     def get_all(self):
         return self._entries
 
     def clear(self):
         self._entries.clear()
+
+    def format_entries(self):
+        """Human-readable syslog output"""
+        lines = []
+        for i, entry in enumerate(self._entries, 1):
+            ts = datetime.fromtimestamp(entry.timestamp).strftime("%H:%M:%S")
+            lines.append(f"{i:>3}. [{ts}] {entry.command}")
+        return lines
