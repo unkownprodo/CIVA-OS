@@ -1,7 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional
-from core.logger import Logger
 
+from core.logger import Logger
+from core.persistence import Persistence
+
+
+# -----------------------------
+# CORE DATA STRUCTURES
+# -----------------------------
 
 @dataclass
 class LogEntry:
@@ -25,34 +31,53 @@ class CommandEntry:
     modifies_control_flow: bool = False
 
 
+# -----------------------------
+# SHELL ENGINE
+# -----------------------------
+
 class Shell:
     def __init__(self):
         self._log = []
+        self._registry = {}
         self._running = True
         self._command_count = 0
 
         self._readonly_mode = False
         self._protected_mode = False
 
-        self._registry = {}
-
-        # NEW: centralized logging system
+        # external systems
         self.logger = Logger()
+        self.persistence = Persistence()
+
+    # -------------------------
+    # MAIN LOOP
+    # -------------------------
 
     def run(self):
         print("CIVA-OS Shell starting...")
 
         while self._running:
-            cmd = input("civa-os> ").strip()
-            if not cmd:
-                continue
+            try:
+                cmd = input("civa-os> ").strip()
+                if not cmd:
+                    continue
+                self._dispatch(cmd)
 
-            self._dispatch(cmd)
+            except EOFError:
+                # Ctrl+D safe shutdown
+                self._handle_event(
+                    "EOF",
+                    Event("shutdown", {})
+                )
+
+    # -------------------------
+    # COMMAND DISPATCHER
+    # -------------------------
 
     def _dispatch(self, raw: str):
         self._command_count += 1
 
-        # NEW: log every command centrally
+        # global log (persistent session log)
         self.logger.log(raw)
 
         parts = raw.split()
@@ -72,6 +97,10 @@ class Shell:
         except PermissionError:
             return
 
+    # -------------------------
+    # CAPABILITY SYSTEM
+    # -------------------------
+
     def _check_capabilities(self, name, entry: CommandEntry):
 
         if entry.mutates_state and self._readonly_mode:
@@ -82,12 +111,15 @@ class Shell:
             print(f"[SYS] Permission denied: '{name}' modifies control flow and protected mode is on.")
             raise PermissionError()
 
+    # -------------------------
+    # EVENT HANDLER
+    # -------------------------
+
     def _handle_event(self, raw: str, event: Event):
+        ts = "now"
 
         if event.kind == "noop":
             return
-
-        ts = "now"
 
         if event.kind == "logged":
             self._log.append(LogEntry(ts, raw))
@@ -97,4 +129,15 @@ class Shell:
 
         elif event.kind == "shutdown":
             self._log.append(LogEntry(ts, "shutdown"))
+
+            # PERSIST STATE BEFORE EXIT
+            self.persistence.save(
+                self.logger,
+                {
+                    "readonly": self._readonly_mode,
+                    "protected": self._protected_mode,
+                    "commands": self._command_count
+                }
+            )
+
             self._running = False
