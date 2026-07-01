@@ -11,10 +11,10 @@ def register_commands(shell):
 
     def status_cmd(args):
         print("\n--- CIVA-OS STATUS ---")
-        print(f"Commands loaded: {len(shell._registry)}")
+        print(f"Commands: {len(shell._registry)}")
         print(f"Running: {shell._running}")
-        print(f"Readonly mode: {shell._readonly_mode}")
-        print(f"Protected mode: {shell._protected_mode}")
+        print(f"Readonly: {shell._readonly_mode}")
+        print(f"Protected: {shell._protected_mode}")
         print("----------------------\n")
         return Event("logged", {})
 
@@ -24,12 +24,20 @@ def register_commands(shell):
         return Event("echo", {"message": message})
 
     def exit_cmd(args):
-        print("Shutting down CIVA-OS...")
+        print("Shutting down...")
         return Event("shutdown", {})
 
+    def syslog_cmd(args):
+        print("\n--- SYSLOG ---")
+        for entry in shell.logger.get_all():
+            print(f"{entry.timestamp:.2f} | {entry.command}")
+        print("--------------\n")
+        return Event("logged", {})
+
     shell._registry = {
-        "help": CommandEntry("List all commands", help_cmd),
+        "help": CommandEntry("List commands", help_cmd),
         "status": CommandEntry("Show system status", status_cmd),
-        "echo": CommandEntry("Print a message", echo_cmd),
+        "echo": CommandEntry("Print message", echo_cmd),
         "exit": CommandEntry("Shutdown system", exit_cmd),
+        "syslog": CommandEntry("Show session history", syslog_cmd),
     }
