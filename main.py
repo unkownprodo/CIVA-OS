@@ -1,5 +1,7 @@
+from core.boot import start_system
+
 def main():
-    print("Project initialized successfully")
+    start_system()
 
 if __name__ == "__main__":
     main()
