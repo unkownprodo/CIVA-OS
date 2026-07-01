@@ -6,7 +6,7 @@ from core.persistence import Persistence
 
 
 # -----------------------------
-# CORE DATA STRUCTURES
+# DATA STRUCTURES
 # -----------------------------
 
 @dataclass
@@ -32,7 +32,7 @@ class CommandEntry:
 
 
 # -----------------------------
-# SHELL ENGINE
+# SHELL CORE
 # -----------------------------
 
 class Shell:
@@ -45,9 +45,34 @@ class Shell:
         self._readonly_mode = False
         self._protected_mode = False
 
-        # external systems
         self.logger = Logger()
         self.persistence = Persistence()
+
+        # restore previous session if available
+        self._restore_session()
+
+    # -------------------------
+    # RESTORE SYSTEM
+    # -------------------------
+
+    def _restore_session(self):
+        data = self.persistence.load()
+        if not data:
+            return
+
+        state = data.get("state", {})
+        log = data.get("log", [])
+
+        self._readonly_mode = state.get("readonly", False)
+        self._protected_mode = state.get("protected", False)
+        self._command_count = state.get("commands", 0)
+
+        for entry in log:
+            self.logger._entries.append(
+                type("L", (), entry)()
+            )
+
+        print("[SYS] Previous session restored.")
 
     # -------------------------
     # MAIN LOOP
@@ -64,20 +89,14 @@ class Shell:
                 self._dispatch(cmd)
 
             except EOFError:
-                # Ctrl+D safe shutdown
-                self._handle_event(
-                    "EOF",
-                    Event("shutdown", {})
-                )
+                self._handle_event("EOF", Event("shutdown", {}))
 
     # -------------------------
-    # COMMAND DISPATCHER
+    # DISPATCH
     # -------------------------
 
     def _dispatch(self, raw: str):
         self._command_count += 1
-
-        # global log (persistent session log)
         self.logger.log(raw)
 
         parts = raw.split()
@@ -98,7 +117,7 @@ class Shell:
             return
 
     # -------------------------
-    # CAPABILITY SYSTEM
+    # CAPABILITY CHECK
     # -------------------------
 
     def _check_capabilities(self, name, entry: CommandEntry):
@@ -130,7 +149,7 @@ class Shell:
         elif event.kind == "shutdown":
             self._log.append(LogEntry(ts, "shutdown"))
 
-            # PERSIST STATE BEFORE EXIT
+            # persist state before exit
             self.persistence.save(
                 self.logger,
                 {
